@@ -1,0 +1,161 @@
+clear; clc; close all;
+
+% --- 1. PARÁMETROS DEL SISTEMA ---
+g = 9.81;  % Gravedad (m/s^2)
+m1 = 2.0;  % Masa del carro (kg)
+m2 = 0.5;  % Masa del péndulo (kg)
+l = 1.0;   % Longitud del péndulo (m)
+k = 20.0;  % Constante del resorte (N/m)
+
+% Tiempo de simulación (paso fijo de 0.05s para que la animación sea fluida)
+dt = 0.05;
+t_final = 20;
+tspan = 0:dt:t_final; 
+
+% --- 2. RESOLUCIÓN DE LOS CASOS FÍSICOS (EDO) ---
+
+% CASO A: Movimiento Base
+y0_base = [0.5, 0, 0.2, 0]; % [x0, v_x0, theta0, v_theta0]
+[t_base, y_base] = ode45(@(t,y) sistema_edo(t, y, m1, m2, k, l, g), tspan, y0_base);
+x_base = y_base(:,1);
+theta_base = y_base(:,3);
+
+% CASO B: Resonancia Paramétrica (Frecuencias Naturales Iguales)
+k_res = (g/l) * (m1 + m2); % k calculado para resonancia
+y0_res = [0.0, 0, 0.3, 0]; 
+[t_res, y_res] = ode45(@(t,y) sistema_edo(t, y, m1, m2, k_res, l, g), tspan, y0_res);
+x_res = y_res(:,1);
+theta_res = y_res(:,3);
+
+% --- 3. GENERACIÓN DE GRÁFICAS ---
+
+% Gráfica 1: Movimiento Base
+fig1 = figure('Name', 'Movimiento Base', 'Color', 'w', 'Position', [100, 100, 600, 400]);
+plot(t_base, x_base, 'b', 'LineWidth', 1.5); hold on;
+plot(t_base, theta_base, 'r', 'LineWidth', 1.5);
+title('Movimiento Base: Posición del Carro y Ángulo del Péndulo');
+xlabel('Tiempo (s)'); ylabel('Amplitud');
+legend('Desplazamiento carro x(t) [m]', 'Ángulo péndulo \theta(t) [rad]');
+grid on;
+
+% Gráfica 2: Resonancia (Fenómeno de Batido)
+fig2 = figure('Name', 'Resonancia y Batido', 'Color', 'w', 'Position', [750, 100, 600, 400]);
+plot(t_res, x_res, 'b', 'LineWidth', 1.5); hold on;
+plot(t_res, theta_res, 'r', 'LineWidth', 1.5);
+title('Resonancia Acoplada (\omega_x \approx \omega_\theta)');
+xlabel('Tiempo (s)'); ylabel('Amplitud');
+legend('Desplazamiento carro x(t) [m]', 'Ángulo péndulo \theta(t) [rad]');
+grid on;
+
+disp('Gráficas generadas. Iniciando la simulación visual en 3 segundos...');
+pause(3);
+
+% Gráfica 3: Límite de Carro Inmóvil (k -> inf, Resorte muy rígido)
+k_rigido = 10000; % Constante elástica muy alta para simular pared rígida
+y0_rigido = [0.0, 0, 0.2, 0]; % Carro en reposo, péndulo con ángulo inicial
+[t_rigido, y_rigido] = ode45(@(t,y) sistema_edo(t, y, m1, m2, k_rigido, l, g), tspan, y0_rigido);
+x_rigido = y_rigido(:,1);
+theta_rigido = y_rigido(:,3);
+
+fig4 = figure('Name', 'Límite de Carro Inmóvil', 'Color', 'w', 'Position', [100, 550, 600, 400]);
+plot(t_rigido, x_rigido, 'b', 'LineWidth', 1.5); hold on;
+plot(t_rigido, theta_rigido, 'r', 'LineWidth', 1.5);
+title('Límite de Carro Inmóvil (Resorte rígido k = 10000)');
+xlabel('Tiempo (s)'); ylabel('Amplitud');
+legend('Desplazamiento carro x(t) [m]', 'Ángulo péndulo \theta(t) [rad]');
+grid on;
+
+% Gráfica 4: Alta No Linealidad (Soltar desde horizontal, theta = pi/2)
+
+y0_nolineal = [0.0, 0, pi/2, 0]; % Péndulo a 90 grados
+[t_nolineal, y_nolineal] = ode45(@(t,y) sistema_edo(t, y, m1, m2, k, l, g), tspan, y0_nolineal);
+x_nolineal = y_nolineal(:,1);
+theta_nolineal = y_nolineal(:,3);
+
+fig5 = figure('Name', 'Alta No Linealidad', 'Color', 'w', 'Position', [750, 550, 600, 400]);
+plot(t_nolineal, x_nolineal, 'b', 'LineWidth', 1.5); hold on;
+plot(t_nolineal, theta_nolineal, 'r', 'LineWidth', 1.5);
+title('Alta No Linealidad (\theta_0 = \pi/2)');
+xlabel('Tiempo (s)'); ylabel('Amplitud');
+legend('Desplazamiento carro x(t) [m]', 'Ángulo péndulo \theta(t) [rad]');
+grid on;
+
+% --- 4. ANIMACIÓN VISUAL DEL SISTEMA ---
+
+fig3 = figure('Name', 'Simulacion Visual', 'Color', 'w', 'Position', [400, 300, 800, 500]);
+
+% Dimensiones para dibujar el carrito
+w_carro = 0.6; 
+h_carro = 0.3; 
+
+for i = 1:length(t_base)
+    % Limpiar el frame actual
+    clf(fig3);
+    hold on;
+    
+    % Variables en el instante i (usaremos el Caso Base para la animación)
+    x_i = x_base(i);
+    theta_i = theta_base(i);
+    
+    % Coordenadas del péndulo
+    xp_i = x_i + l * sin(theta_i);
+    yp_i = -l * cos(theta_i);
+    
+    % Dibujar la pared y el suelo
+    plot([-2, -2], [-1.5, 1], 'k', 'LineWidth', 3); % Pared
+    plot([-2, 3], [-h_carro/2, -h_carro/2], 'k', 'LineWidth', 2); % Suelo
+    
+    % Dibujar el resorte (línea en zigzag simplificada)
+    n_espiras = 10;
+    x_resorte = linspace(-2, x_i - w_carro/2, n_espiras);
+    y_resorte = 0.1 * sin(linspace(0, 10*pi, n_espiras));
+    plot(x_resorte, y_resorte, 'b', 'LineWidth', 1.5);
+    
+    % Dibujar el carro
+    rectangle('Position', [x_i - w_carro/2, -h_carro/2, w_carro, h_carro], ...
+              'FaceColor', [0.7 0.7 0.7], 'EdgeColor', 'k', 'LineWidth', 1.5);
+          
+    % Dibujar la varilla del péndulo
+    plot([x_i, xp_i], [0, yp_i], 'k', 'LineWidth', 2);
+    
+    % Dibujar la masa del péndulo
+    plot(xp_i, yp_i, 'ro', 'MarkerSize', 12, 'MarkerFaceColor', 'r');
+    
+    % Dibujar el eje del péndulo (punto de anclaje)
+    plot(x_i, 0, 'k.', 'MarkerSize', 15);
+    
+    % Configuraciones de la gráfica
+    axis([-2 3 -1.5 1]);
+    axis equal;
+    grid on;
+    title(sprintf('Simulación del Sistema (Caso Base) | Tiempo: %.2f s', t_base(i)));
+    xlabel('Posición X (m)');
+    ylabel('Posición Y (m)');
+    
+    % Refrescar el dibujo
+    drawnow;
+end
+
+% --- 5. FUNCIÓN DEL SISTEMA DE ECUACIONES DIFERENCIALES ---
+
+function dydt = sistema_edo(~, y, m1, m2, k, l, g)
+    % Extracción de variables de estado
+    x = y(1);
+    v_x = y(2);
+    theta = y(3);
+    v_theta = y(4);
+    
+    % Matriz de Inercia M(theta)
+    M = [ (m1 + m2),      m2 * l * cos(theta);
+          cos(theta),     l ];
+      
+    % Vector de fuerzas F
+    F = [ m2 * l * v_theta^2 * sin(theta) - k * x ;
+         -g * sin(theta) ];
+     
+    % Resolución del sistema: M * a = F
+    aceleraciones = M \ F;
+    
+    % Derivadas
+    dydt = [v_x; aceleraciones(1); v_theta; aceleraciones(2)];
+end
